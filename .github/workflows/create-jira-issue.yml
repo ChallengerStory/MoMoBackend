@@ -46,6 +46,8 @@ jobs:
         id: fix-checkbox
         run: |
           echo "${{ steps.md2jira.outputs.output-text }}" > fixed.md
+          sed -i 's/^ *- \[ \]/[ ]/g' fixed.md
+          sed -i 's/^ *- \[x\]/[x]/g' fixed.md
           sed -i 's/- \[ \]/[ ]/g' fixed.md
           sed -i 's/- \[x\]/[x]/g' fixed.md
           echo "output-text<<EOF" >> $GITHUB_OUTPUT
