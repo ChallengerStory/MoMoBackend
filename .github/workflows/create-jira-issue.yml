@@ -31,7 +31,7 @@ jobs:
         run: |
           echo '${{ steps.issue-parser.outputs.jsonString }}'
 
-      - name: Convert markdown to Jira syntax using peter-evans/jira2md
+      - name: Convert markdown to Jira syntax
         uses: peter-evans/jira2md@v2
         id: md2jira
         with:
@@ -41,6 +41,16 @@ jobs:
 
             ${{ github.event.issue.body }}
           mode: md2jira
+
+      - name: Fix checkbox formatting for Jira
+        id: fix-checkbox
+        run: |
+          echo "${{ steps.md2jira.outputs.output-text }}" > fixed.md
+          sed -i 's/- \[ \]/[ ]/g' fixed.md
+          sed -i 's/- \[x\]/[x]/g' fixed.md
+          echo "output-text<<EOF" >> $GITHUB_OUTPUT
+          cat fixed.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Determine Issue Type
         id: type-check
