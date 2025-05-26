@@ -28,6 +28,10 @@ jobs:
         with:
           template-path: .github/ISSUE_TEMPLATE/issue_form.yml
 
+      - name: Log Issue Parser
+        run: |
+          echo '${{ steps.issue-parser.outputs.jsonString }}'
+
       - name: Extract tasks from textarea (Jira 호환 체크리스트)
         id: extract-tasks
         run: |
