@@ -3,6 +3,7 @@ on:
   issues:
     types:
       - opened
+
 jobs:
   create-issue:
     name: Create Jira issue
@@ -41,23 +42,33 @@ jobs:
             ${{ github.event.issue.body }}
           mode: md2jira
 
+      - name: Determine Issue Type
+        id: type-check
+        run: |
+          PARENT_KEY="${{ steps.issue-parser.outputs.issueparser_parentKey }}"
+          if [ -z "$PARENT_KEY" ]; then
+            echo "No parent key provided. Creating Task."
+            echo "type=Task" >> $GITHUB_OUTPUT
+            echo "fields={}" >> $GITHUB_OUTPUT
+          else
+            echo "Parent key provided: $PARENT_KEY. Creating Sub-task."
+            echo "type=Subtask" >> $GITHUB_OUTPUT
+            echo "fields={\"parent\": {\"key\": \"$PARENT_KEY\"}}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Issue
         id: create
         uses: atlassian/gajira-create@v3
         with:
           project: CHAL
-          issuetype: Subtask
+          issuetype: "${{ steps.type-check.outputs.type }}"
           summary: "${{ github.event.issue.title }}"
           description: "${{ steps.md2jira.outputs.output-text }}"
-          fields: |
-            {
-              "parent": {
-                "key": "${{ steps.issue-parser.outputs.issueparser_parentKey }}"
-              }
-            }
+          fields: "${{ steps.type-check.outputs.fields }}"
 
       - name: Log created issue
-        run: echo "Jira Issue ${{ steps.issue-parser.outputs.parentKey }}/${{ steps.create.outputs.issue }} was created"
+        run: |
+          echo "Jira Issue created: ${{ steps.create.outputs.issue }}"
 
       - name: Checkout develop code
         uses: actions/checkout@v4
