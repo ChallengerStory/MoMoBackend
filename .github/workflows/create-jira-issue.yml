@@ -1,66 +1,94 @@
 name: Create Jira issue
+
 on:
-  issues:
-    types:
-      - opened
+  workflow_call:
+    inputs:
+      jira-project-key:
+        required: true
+        type: string
+      jira-issue-template-path:
+        required: true
+        type: string
+      checkout-base-branch:
+        required: false
+        default: dev
+        type: string
+    secrets:
+      JIRA_BASE_URL:
+        required: true
+      JIRA_API_TOKEN:
+        required: true
+      JIRA_USER_EMAIL:
+        required: true
+      GITHUB_TOKEN:
+        required: true
 
 jobs:
   create-issue:
     name: Create Jira issue
     runs-on: ubuntu-latest
     steps:
-      - name: Login
+      - name: Login to Jira
         uses: atlassian/gajira-login@v3
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
 
-      - name: Checkout main code
+      - name: Checkout base branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ inputs.checkout-base-branch }}
 
-      - name: Issue Parser
+      - name: Parse issue form
         uses: stefanbuck/github-issue-praser@v3
         id: issue-parser
         with:
-          template-path: .github/ISSUE_TEMPLATE/issue_form.yml
+          template-path: ${{ inputs.jira-issue-template-path }}
 
-      - name: Log Issue Parser
+      - name: Log issue JSON
         run: |
           echo '${{ steps.issue-parser.outputs.jsonString }}'
 
-      - name: Convert markdown to Jira Syntax
-        uses: peter-evans/jira2md@v1
-        id: md2jira
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          input-text: |
-            ### Github Issue Link
-            - ${{ github.event.issue.html_url }}
+          node-version: '18'
 
-            ${{ github.event.issue.body }}
-          mode: md2jira
+      - name: Install md2jira
+        run: npm install -g md2jira
+
+      - name: Convert markdown to Jira syntax
+        id: md2jira
+        run: |
+          echo "### Github Issue Link" > output.md
+          echo "- ${{ github.event.issue.html_url }}" >> output.md
+          echo "" >> output.md
+
+          echo "${{ github.event.issue.body }}" > issue.md
+          md2jira issue.md >> output.md
+
+          echo "output-text<<EOF" >> $GITHUB_OUTPUT
+          cat output.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Determine Issue Type
         id: type-check
         run: |
           PARENT_KEY="${{ steps.issue-parser.outputs.issueparser_parentKey }}"
           if [ -z "$PARENT_KEY" ]; then
-            echo "No parent key provided. Creating Task."
             echo "type=Task" >> $GITHUB_OUTPUT
             echo "fields={}" >> $GITHUB_OUTPUT
           else
-            echo "Parent key provided: $PARENT_KEY. Creating Sub-task."
             echo "type=Subtask" >> $GITHUB_OUTPUT
             echo "fields={\"parent\": {\"key\": \"$PARENT_KEY\"}}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Issue
+      - name: Create Jira Issue
         id: create
         uses: atlassian/gajira-create@v3
         with:
-          project: CHAL
+          project: ${{ inputs.jira-project-key }}
           issuetype: "${{ steps.type-check.outputs.type }}"
           summary: "${{ github.event.issue.title }}"
           description: "${{ steps.md2jira.outputs.output-text }}"
@@ -69,11 +97,6 @@ jobs:
       - name: Log created issue
         run: |
           echo "Jira Issue created: ${{ steps.create.outputs.issue }}"
-
-      - name: Checkout develop code
-        uses: actions/checkout@v4
-        with:
-          ref: dev
 
       - name: Create branch with Ticket number
         run: |
