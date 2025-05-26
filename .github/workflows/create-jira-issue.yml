@@ -36,7 +36,7 @@ jobs:
         id: extract-tasks
         run: |
           echo "*체크리스트 (Tasks)*" > cleaned_tasks.md
-          echo "${{ steps.issue-parser.outputs.issueparser_tasks }}" > raw_tasks.md
+          echo "${{ steps.issue-parser.outputs.jsonString }}" > raw_tasks.md
 
           grep '^- \[ \]' raw_tasks.md | sed 's/^- \[ \] */[] /' >> cleaned_tasks.md
           grep '^- \[x\]' raw_tasks.md | sed 's/^- \[x\] */[x] /' >> cleaned_tasks.md
