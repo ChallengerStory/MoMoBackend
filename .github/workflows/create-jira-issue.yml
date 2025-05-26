@@ -45,6 +45,11 @@ jobs:
           cat cleaned_tasks.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Log final Jira-compatible checklist
+        run: |
+          echo "📋 Jira Markdown Checklist Preview:"
+          cat cleaned_tasks.md
+
       - name: Convert markdown to Jira syntax
         uses: peter-evans/jira2md@v2
         id: md2jira
@@ -54,6 +59,7 @@ jobs:
             - ${{ github.event.issue.html_url }}
 
             ${{ github.event.issue.body }}
+            ${{ steps.extract-tasks.outputs.markdown }}
           mode: md2jira
 
       - name: Determine Issue Type
