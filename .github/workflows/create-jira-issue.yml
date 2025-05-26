@@ -1,4 +1,5 @@
 name: Create Jira issue
+
 on:
   issues:
     types:
@@ -9,7 +10,7 @@ jobs:
     name: Create Jira issue
     runs-on: ubuntu-latest
     steps:
-      - name: Login
+      - name: Login to Jira
         uses: atlassian/gajira-login@v3
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
@@ -21,15 +22,24 @@ jobs:
         with:
           ref: main
 
-      - name: Issue Parser
+      - name: Parse Issue Form
         uses: stefanbuck/github-issue-praser@v3
         id: issue-parser
         with:
           template-path: .github/ISSUE_TEMPLATE/issue_form.yml
 
-      - name: Log Issue Parser
+      - name: Extract tasks from textarea (Jira 호환 체크리스트)
+        id: extract-tasks
         run: |
-          echo '${{ steps.issue-parser.outputs.jsonString }}'
+          echo "*체크리스트 (Tasks)*" > cleaned_tasks.md
+          echo "${{ steps.issue-parser.outputs.issueparser_tasks }}" > raw_tasks.md
+
+          grep '^- \[ \]' raw_tasks.md | sed 's/^- \[ \] */[] /' >> cleaned_tasks.md
+          grep '^- \[x\]' raw_tasks.md | sed 's/^- \[x\] */[x] /' >> cleaned_tasks.md
+
+          echo "markdown<<EOF" >> $GITHUB_OUTPUT
+          cat cleaned_tasks.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Convert markdown to Jira syntax
         uses: peter-evans/jira2md@v2
@@ -42,50 +52,34 @@ jobs:
             ${{ github.event.issue.body }}
           mode: md2jira
 
-      - name: Fix checkbox formatting for Jira
-        id: fix-checkbox
-        run: |
-          echo "${{ steps.md2jira.outputs.output-text }}" > fixed.md
-          sed -i 's/^ *- \[ \]/[ ]/g' fixed.md
-          sed -i 's/^ *- \[x\]/[x]/g' fixed.md
-          sed -i 's/- \[ \]/[ ]/g' fixed.md
-          sed -i 's/- \[x\]/[x]/g' fixed.md
-          echo "output-text<<EOF" >> $GITHUB_OUTPUT
-          cat fixed.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Determine Issue Type
         id: type-check
         run: |
           PARENT_KEY="${{ steps.issue-parser.outputs.issueparser_parentKey }}"
           if [ -z "$PARENT_KEY" ]; then
-            echo "No parent key provided. Creating Task."
             echo "type=Task" >> $GITHUB_OUTPUT
             echo "fields={}" >> $GITHUB_OUTPUT
           else
-            echo "Parent key provided: $PARENT_KEY. Creating Sub-task."
             echo "type=Subtask" >> $GITHUB_OUTPUT
             echo "fields={\"parent\": {\"key\": \"$PARENT_KEY\"}}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Issue
+      - name: Create Jira Issue
         id: create
         uses: atlassian/gajira-create@v3
         with:
           project: CHAL
           issuetype: "${{ steps.type-check.outputs.type }}"
           summary: "${{ github.event.issue.title }}"
-          description: "${{ steps.md2jira.outputs.output-text }}"
+          description: |
+            ${{ steps.md2jira.outputs.output-text }}
+
+            ${{ steps.extract-tasks.outputs.markdown }}
           fields: "${{ steps.type-check.outputs.fields }}"
 
       - name: Log created issue
         run: |
           echo "Jira Issue created: ${{ steps.create.outputs.issue }}"
-
-      - name: Checkout dev code
-        uses: actions/checkout@v4
-        with:
-          ref: dev
 
       - name: Create branch with Ticket number
         run: |
