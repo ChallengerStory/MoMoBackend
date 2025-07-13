@@ -1,0 +1,44 @@
+server:
+  port: 5000
+
+spring:
+  # mariadb
+#  datasource:
+#    url: ${MARIADB_URI} # jdbc:mariadb://localhost:3306/chatdb
+#    username: ${MARIADB_USERNAME} # challengers
+#    password: ${MARIADB_PASSWORD} # challengers
+#    driver-class-name: org.mariadb.jdbc.Driver
+
+#
+#  # JPA
+#  jpa:
+#    hibernate:
+#      ddl-auto: create
+#    show-sql: true
+#    properties:
+#      hibernate:
+#        format_sql: true
+#        dialect: org.hibernate.dialect.MariaDBDialect # JPQL ??? ??
+
+
+  # mongodb
+  data:
+    mongodb:
+      uri: ${MONGODB_URI} # mongodb://localhost:27017/chatdb
+
+  # kafka
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+#    bootstrap-servers: kafka:9092
+    consumer:
+#      group-id: test-group
+#      group-id: chat-consumer-${random.int(10000)}
+      group-id: chat-consumer-${random.uuid}
+    topic:
+      chat: ${SPRING_KAFKA_TOPIC_NAME}
+#      auto-offset-reset: earliest
+#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
