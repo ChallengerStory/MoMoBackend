@@ -84,7 +84,7 @@ public class KafkaConsumerConfig {
     }
 
     // 카프카 dlt topic으로 보내기 위한 템플릿
-    @Bean
+    @Bean(name = "kafkaDltTemplate")
     public KafkaTemplate<String, Object> kafkaDltTemplate() {
         return new KafkaTemplate<>(dltProducerFactory());
     }

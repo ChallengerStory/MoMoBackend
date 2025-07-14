@@ -1,5 +1,6 @@
 package challengers.momochat.chat.command.domain.aggregate.entity;
 
+import challengers.momochat.chat.command.application.dto.ChatMessageDTO;
 import challengers.momochat.chat.command.domain.aggregate.enums.ChatMessageType;
 import lombok.*;
 import org.bson.types.ObjectId;
@@ -46,4 +47,19 @@ public class ChatMessage {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
+
+    // ChatMessageDTO -> ENTITY 정적 팩토리 메서드
+    public static ChatMessage fromDTO(ChatMessageDTO dto){
+        return ChatMessage.builder()
+                .chatRoomId(dto.getChatRoomId())
+                .memberId(dto.getMemberId())
+                .memberNickname(dto.getMemberNickname())
+                .memberPhoto(dto.getMemberPhoto())
+                .message(dto.getMessage())
+                .messageType(dto.getMessageType())
+                .unreadCount(1)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
 }

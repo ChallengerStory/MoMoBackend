@@ -1,6 +1,7 @@
 package challengers.momochat.chat.command.application.controller;
 
 import challengers.momochat.chat.command.application.dto.ChatMessageDTO;
+import challengers.momochat.chat.command.application.dto.ChatMessageIdempotencyKeyDTO;
 import challengers.momochat.chat.command.application.service.CommandChatMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,16 +17,37 @@ public class CommandChatWebSocketController { // web socket 엔드포인트 구�
 
     private final CommandChatMessageService commandChatMessageService;
 
-    @MessageMapping("{chatRoomId}") // kafka로 메시지 전송
-    public void sendMessage(
+    @MessageMapping("stomp/{chatRoomId}") // stomp로 메시지 전송
+    public void sendMessageByStomp(
             @DestinationVariable String chatRoomId,
             ChatMessageDTO chatMessageDTO,
             SimpMessageHeaderAccessor headerAccessor // ws 연결된 사용자 세션정보(사용자 정보)
     ) {
-        // 헤더에 멱등키 추가
         log.info("Sending message: {}", chatMessageDTO);
 
-        commandChatMessageService.sendMessage(chatMessageDTO);
+        commandChatMessageService.sendMessageByStomp(chatMessageDTO);
+    }
+
+    @MessageMapping("kafka/{chatRoomId}")
+    public void sendMessageByKafka(
+            @DestinationVariable String chatRoomId,
+            ChatMessageDTO chatMessageDTO,
+            SimpMessageHeaderAccessor headerAccessor // ws 연결된 사용자 세션정보(사용자 정보)
+    ){
+
+        commandChatMessageService.sendMessageByKafka(chatMessageDTO);
+    }
+
+    @MessageMapping("kafka/idempotencyKey/{chatRoomId}")
+    public void sendMessageByKafkaIdempotencyKey(
+            @DestinationVariable String chatRoomId,
+            ChatMessageIdempotencyKeyDTO chatMessageIdempotencyKeyDTO,
+            SimpMessageHeaderAccessor headerAccessor // ws 연결된 사용자 세션정보(사용자 정보)
+    ){
+        // 헤더에 멱등키 추가
+
+        commandChatMessageService.sendMessageByKafkaIdempotencyKey(chatMessageIdempotencyKeyDTO);
+
     }
 
 //    @MessageMapping("{chatRoomId}")

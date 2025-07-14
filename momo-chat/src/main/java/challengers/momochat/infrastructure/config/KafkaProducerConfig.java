@@ -47,7 +47,7 @@ public class KafkaProducerConfig {
     }
 
     // chat service에서 카프카로 이벤트 발행하기 위한 템플릿
-    @Bean(name = "chatKafkaTemplate")
+    @Bean(name = "kafkaChatTemplate")
     public KafkaTemplate<String, Object> chatKafkaTemplate() {
         return new KafkaTemplate<>(chatKafkaProducerFactory());
     }
