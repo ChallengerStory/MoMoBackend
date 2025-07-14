@@ -42,12 +42,10 @@ public class CommandChatWebSocketController { // web socket 엔드포인트 구�
     public void sendMessageByKafkaIdempotencyKey(
             @DestinationVariable String chatRoomId,
             ChatMessageIdempotencyKeyDTO chatMessageIdempotencyKeyDTO,
-            SimpMessageHeaderAccessor headerAccessor // ws 연결된 사용자 세션정보(사용자 정보)
+            SimpMessageHeaderAccessor headerAccessor
     ){
-        // 헤더에 멱등키 추가
-
+        log.info("Sending message by kafka/idempotencyKey: {}", chatMessageIdempotencyKeyDTO.getMessage());
         commandChatMessageService.sendMessageByKafkaIdempotencyKey(chatMessageIdempotencyKeyDTO);
-
     }
 
 //    @MessageMapping("{chatRoomId}")

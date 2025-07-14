@@ -26,6 +26,10 @@ spring:
     mongodb:
       uri: ${MONGODB_URI} # mongodb://localhost:27017/chatdb
 
+    redis:
+      host: redis
+      port: 6379
+
   # kafka
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
@@ -42,3 +46,4 @@ spring:
 #    producer:
 #      key-serializer: org.apache.kafka.common.serialization.StringSerializer
 #      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
