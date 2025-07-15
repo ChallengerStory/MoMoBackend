@@ -14,9 +14,10 @@ public interface CommandChatMessageService {
     void sendMessageByKafka(ChatMessageDTO chatMessageDTO);
 
     // 3. kafka with idempotency key
+    @Transactional
     void sendMessageByKafkaIdempotencyKey(ChatMessageIdempotencyKeyDTO chatMessageIdempotencyKeyDTO);
 
-    // 4. kafka with idempotency key + outbox
+    // 4. kafka + idempotency key + outbox
     @Transactional
-    void sendMessageByKafkaIdempotencyKeyOutbox(ChatMessageDTO chatMessageDTO);
+    void sendMessageByKafkaIdempotencyKeyOutbox(ChatMessageIdempotencyKeyDTO dto);
 }

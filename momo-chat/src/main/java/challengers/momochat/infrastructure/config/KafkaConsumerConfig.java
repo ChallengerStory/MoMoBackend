@@ -108,7 +108,7 @@ public class KafkaConsumerConfig {
                 (record, exception) -> {
                     log.error("DLT로 메시지 전송: 토픽 = {}, 파티션 = {}, 오프셋 = {}, 예외 = {}",
                             record.topic(), record.partition(), record.offset(), exception.getMessage());
-                    return new TopicPartition("chat.outbox.consumer.dlq", record.partition());
+                    return new TopicPartition("momo-chat-dlt-topic", record.partition());
                 }
         );
 

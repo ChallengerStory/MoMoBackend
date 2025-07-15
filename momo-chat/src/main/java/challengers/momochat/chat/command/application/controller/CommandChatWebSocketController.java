@@ -17,7 +17,8 @@ public class CommandChatWebSocketController { // web socket 엔드포인트 구�
 
     private final CommandChatMessageService commandChatMessageService;
 
-    @MessageMapping("stomp/{chatRoomId}") // stomp로 메시지 전송
+    // 1. stomp
+    @MessageMapping("stomp/{chatRoomId}")
     public void sendMessageByStomp(
             @DestinationVariable String chatRoomId,
             ChatMessageDTO chatMessageDTO,
@@ -28,60 +29,35 @@ public class CommandChatWebSocketController { // web socket 엔드포인트 구�
         commandChatMessageService.sendMessageByStomp(chatMessageDTO);
     }
 
+    // 2. kafka + stomp
     @MessageMapping("kafka/{chatRoomId}")
     public void sendMessageByKafka(
             @DestinationVariable String chatRoomId,
             ChatMessageDTO chatMessageDTO,
             SimpMessageHeaderAccessor headerAccessor // ws 연결된 사용자 세션정보(사용자 정보)
-    ){
-
+    ) {
         commandChatMessageService.sendMessageByKafka(chatMessageDTO);
     }
 
+    // 3. kafka + stomp + idempotencyKey
     @MessageMapping("kafka/idempotencyKey/{chatRoomId}")
     public void sendMessageByKafkaIdempotencyKey(
             @DestinationVariable String chatRoomId,
             ChatMessageIdempotencyKeyDTO chatMessageIdempotencyKeyDTO,
             SimpMessageHeaderAccessor headerAccessor
-    ){
+    ) {
         log.info("Sending message by kafka/idempotencyKey: {}", chatMessageIdempotencyKeyDTO.getMessage());
         commandChatMessageService.sendMessageByKafkaIdempotencyKey(chatMessageIdempotencyKeyDTO);
     }
 
-//    @MessageMapping("{chatRoomId}")
-//    fun sendMessageByKafkaOutbox(
-//            @DestinationVariable chatRoomId: String,
-//            @Header("idempotencyKey") idempotencyKey: String,
-//            @Payload sendMessageRequestVo: SendMessageRequestVo,
-//            simpleMessageHeaderAccessor: SimpMessageHeaderAccessor,
-//            ) {
-//        println("idempotencyKey:$idempotencyKey")
-//        // Vo -> Dto + 토큰에서 memberId/Nickname/Photo를 받아올 수 있도록 수정해야 함
-//        val commandChatMessageKeyRequestDTO =
-//                voToDtoConverter.sendMessageRequestVoAndKeyToDTO(
-//                        sendMessageRequestVo,
-//                        chatRoomId,
-//                        idempotencyKey,
-//                        )
-//
-//        // messageType이 Enter일 경우에는 처음 등장이므로, Websocket의 세션에 정보 저장 (simpleMessageHeaderAccessor)
-//        val updateMessageDTO =
-//                when (commandChatMessageKeyRequestDTO.messageType) {
-//            ChatMessageType.ENTER -> {
-//                simpleMessageHeaderAccessor.sessionAttributes?.apply {
-//                    // 향후 Token 완성 후 수정필요
-//                    put("memberId", commandChatMessageKeyRequestDTO.memberId)
-//                    put("memberNickname", commandChatMessageKeyRequestDTO.memberNickname)
-//                    put("memberPhoto", commandChatMessageKeyRequestDTO.memberPhoto)
-//                    put("chatRoomId", commandChatMessageKeyRequestDTO.chatRoomId)
-//                }
-//
-//                commandChatMessageKeyRequestDTO.copy(message = "${commandChatMessageKeyRequestDTO.memberNickname}님이 입장하셨습니다.")
-//            }
-//                else -> commandChatMessageKeyRequestDTO
-//        }
-//
-//        // 메시지 전송
-//        commandChatMessageService.sendMessageByKafkaOutbox(updateMessageDTO)
-//    }
+    // 4. kfaka + stomp + idempotencyKey + outbox
+    @MessageMapping("kafka/idempotencyKey/outbox/{chatRoomId}")
+    public void sendMessageByKafkaIdempotencyKeyOutbox(
+            @DestinationVariable String chatRoomId,
+            ChatMessageIdempotencyKeyDTO chatMessageIdempotencyKeyDTO,
+            SimpMessageHeaderAccessor headerAccessor
+    ) {
+        log.info("Sending message by kafka/idempotencyKey/outbox: {}", chatMessageIdempotencyKeyDTO.getMessage());
+        commandChatMessageService.sendMessageByKafkaIdempotencyKeyOutbox(chatMessageIdempotencyKeyDTO);
+    }
 }

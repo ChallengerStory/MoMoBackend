@@ -1,4 +1,4 @@
-package challengers.momochat.infrastructure.consumer;
+package challengers.momochat.infrastructure.event.consumer;
 
 import challengers.momochat.chat.command.application.dto.ChatMessageDTO;
 import challengers.momochat.chat.command.application.dto.ChatMessageIdempotencyKeyDTO;

@@ -5,7 +5,12 @@ import challengers.momochat.chat.command.application.dto.ChatMessageIdempotencyK
 import challengers.momochat.chat.command.application.service.CommandChatMessageService;
 import challengers.momochat.chat.command.domain.aggregate.entity.ChatMessage;
 import challengers.momochat.chat.command.domain.repository.CommandChatMessageRepository;
-import lombok.RequiredArgsConstructor;
+import challengers.momochat.infrastructure.outbox.dto.OutboxDTO;
+import challengers.momochat.infrastructure.outbox.entity.Outbox;
+import challengers.momochat.infrastructure.outbox.enums.OutboxStatus;
+import challengers.momochat.infrastructure.outbox.service.OutboxService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -17,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 
 @Service
 @Slf4j
@@ -27,6 +31,8 @@ public class CommandChatMessageServiceImpl implements CommandChatMessageService 
     private final CommandChatMessageRepository commandChatMessageRepository; // chat message save
     private final KafkaTemplate<String, Object> kafkaTemplate; // send TO momo-chat-topic
     private final RedisTemplate<String, Object> redisTemplate; // redis idempotencyKey
+    private final ObjectMapper objectMapper; // 이벤트 직렬화
+    private final OutboxService outboxService;
     @Value("${spring.kafka.topic.chat}")
     private String topicName;
 
@@ -35,12 +41,14 @@ public class CommandChatMessageServiceImpl implements CommandChatMessageService 
             SimpMessagingTemplate simpMessagingTemplate,
             CommandChatMessageRepository commandChatMessageRepository,
             @Qualifier("kafkaChatTemplate") KafkaTemplate<String, Object> kafkaTemplate, // 동일한 여러개의 kafka template bean name 구분
-            RedisTemplate<String, Object> redisTemplate
+            RedisTemplate<String, Object> redisTemplate, ObjectMapper objectMapper, OutboxService outboxService
     ) {
         this.simpMessagingTemplate = simpMessagingTemplate;
         this.commandChatMessageRepository = commandChatMessageRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.outboxService = outboxService;
     }
 
 
@@ -113,22 +121,51 @@ public class CommandChatMessageServiceImpl implements CommandChatMessageService 
     // 4. kafka + idempotency key + outbox
     @Transactional
     @Override
-    public void sendMessageByKafkaIdempotencyKeyOutbox(ChatMessageDTO chatMessageDTO) {
-
+    public void sendMessageByKafkaIdempotencyKeyOutbox(ChatMessageIdempotencyKeyDTO dto) {
         // 1. 멱등성 체크
+        String idempotencyKey = dto.getIdempotencyKey();
 
-        // 2. 전송 메시지 db 저장
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            log.warn("요청에 유효하지 않은 idempotencyKey가 포함되어 있습니다. 요청 거부됨.");
+            return;
+        }
 
-        // 3. 도메인 이벤트(채팅 전달됨)
+        Boolean isNewRequest = redisTemplate
+                .opsForValue()
+                .setIfAbsent(idempotencyKey, "1", Duration.ofMinutes(3));
 
-        // 4. 이벤트 직렬화
+        if (Boolean.FALSE.equals(isNewRequest)) {
+            log.info("중복 요청: 이미 처리된 idempotencyKey = {}", idempotencyKey);
+            return;
+        }
 
-        // 5. outbox 엔티티 생성 + 멱등키를 통한 중복 방지
+        try{
+            // 2. 전송 메시지 db 저장
+            ChatMessage savedMessage = commandChatMessageRepository.save(ChatMessage.fromDTO(dto));
 
-        // 6. outbox 등록
+            // 2. 이벤트 직렬화
+            String payload = objectMapper.writeValueAsString(dto);
 
-        // 7. 실패시 레디스 키 삭제 + 트랜잭션 롤백
+            // 3. outbox 생성
+            OutboxDTO outboxDTO = OutboxDTO.builder()
+                    .aggregateId(savedMessage.getChatMessageId().toHexString()) // ObjectId -> String
+                    .payload(payload)
+                    .idempotencyKey(idempotencyKey)
+                    .build();
 
+            // 4. outbox service 호출
+            outboxService.createOutbox(outboxDTO);
+
+        } catch (JsonProcessingException e) {
+            redisTemplate.delete(idempotencyKey);
+            log.error("직렬화(ObjectMapper) 오류 발생. 멱등키 제거 및 롤백", e);
+            throw new RuntimeException("직렬화 실패", e);
+
+        } catch (Exception e) {
+            redisTemplate.delete(idempotencyKey);
+            log.error("트랜잭션 또는 기타 오류 발생. 멱등키 제거 및 롤백", e);
+            throw new RuntimeException("처리 중 오류 발생", e);
+        }
     }
 
 }
