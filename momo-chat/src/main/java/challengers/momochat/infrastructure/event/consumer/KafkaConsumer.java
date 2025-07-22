@@ -2,17 +2,20 @@ package challengers.momochat.infrastructure.event.consumer;
 
 import challengers.momochat.chat.command.application.dto.ChatMessageDTO;
 import challengers.momochat.chat.command.application.dto.ChatMessageIdempotencyKeyDTO;
+import challengers.momochat.chat.command.application.service.CommandChatMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class KafkaConsumer {
 
+    private final CommandChatMessageService commandChatMessageService;
     // 1. kafka + stomp
 //    @KafkaListener(
 //            topics = "${spring.kafka.topic.chat}",
@@ -38,6 +41,7 @@ public class KafkaConsumer {
 //    }
 
     // 2. kafka + stomp + idempotencyKey
+    @Transactional
     @KafkaListener(
             topics = "${spring.kafka.topic.chat}",
             groupId = "${spring.kafka.consumer.group-id}",
@@ -51,6 +55,8 @@ public class KafkaConsumer {
                     dto.getMessage());
 
             // TODO: Stomp 또는 다른 처리 로직 수행
+            commandChatMessageService.sendToStomp(dto);
+            log.info("awefawefoijaweoifjwoaefjoiawejf");
 
             // 수동 커밋
             ack.acknowledge();

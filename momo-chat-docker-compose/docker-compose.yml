@@ -36,16 +36,16 @@ services:
     depends_on:
       - kafka
 
-  mongo:
-    image: mongo:6.0
-    container_name: momo-mongo
-    restart: always
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: chatdb
-    volumes:
-      - mongo-data:/data/db
+#   mongo:
+#     image: mongo:6.0
+#     container_name: momo-mongo
+#     restart: always
+#     ports:
+#       - "27017:27017"
+#     environment:
+#       MONGO_INITDB_DATABASE: chatdb
+#     volumes:
+#       - mongo-data:/data/db
 
   momo-chat:
     build:
@@ -55,12 +55,18 @@ services:
     ports:
       - "5000:5000"
     environment:
-      MONGODB_URI: mongodb://mongo:27017/chatdb
+      DB_USERNAME: challengers
+      DB_PASSWORD: challengers
+      MONGO_REPLICA_ADDRESS: mongo1:27017,mongo2:27018,mongo3:27019
+      MONGO_DATABASE_NAME: chatdb
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_TOPIC_NAME: momo-chat-topic
     depends_on:
       - kafka
-      - mongo
+      - mongo1
+      - mongo2
+      - mongo3
+
   redis:
     image: redis:7.2
     container_name: redis-single
@@ -70,7 +76,65 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes
 
+  mongo1:
+    image: mongo
+    container_name: mongo1
+    hostname: mongo1
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: challengers
+      MONGO_INITDB_ROOT_PASSWORD: challengers
+    command: >
+        bash -c "
+            chmod 400 /etc/mongo/mongodb.key &&
+            exec mongod --replSet rs0 --keyFile /etc/mongo/mongodb.key --bind_ip_all
+        "
+    volumes:
+      - ./mongodb.key:/etc/mongo/mongodb.key
+      - mongo1-data:/data/db
+
+  mongo2:
+    image: mongo
+    container_name: mongo2
+    hostname: mongo2
+    restart: always
+    ports:
+      - "27018:27018"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: challengers
+      MONGO_INITDB_ROOT_PASSWORD: challengers      
+    command: >
+        bash -c "
+            chmod 400 /etc/mongo/mongodb.key &&
+            exec mongod --replSet rs0 --keyFile /etc/mongo/mongodb.key --bind_ip_all
+        "
+    volumes:
+      - ./mongodb.key:/etc/mongo/mongodb.key
+      - mongo2-data:/data/db
+
+  mongo3:
+    image: mongo
+    container_name: mongo3
+    hostname: mongo3
+    restart: always
+    ports:
+      - "27019:27019"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: challengers
+      MONGO_INITDB_ROOT_PASSWORD: challengers
+    command: >
+        bash -c "
+            chmod 400 /etc/mongo/mongodb.key &&
+            exec mongod --replSet rs0 --keyFile /etc/mongo/mongodb.key --bind_ip_all
+        "
+    volumes:
+      - ./mongodb.key:/etc/mongo/mongodb.key
+      - mongo3-data:/data/db
 
 volumes:
-  mongo-data:
+  mongo1-data:
+  mongo2-data:
+  mongo3-data:
   redis-data:

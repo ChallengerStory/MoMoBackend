@@ -168,4 +168,11 @@ public class CommandChatMessageServiceImpl implements CommandChatMessageService 
         }
     }
 
+    // 메시지 브로드캐스트
+    @Override
+    public void sendToStomp(ChatMessageIdempotencyKeyDTO dto) {
+        log.info("/topic/message/" + dto.getChatRoomId());
+        simpMessagingTemplate.convertAndSend("/topic/message/" + dto.getChatRoomId(), dto);
+    }
+
 }
