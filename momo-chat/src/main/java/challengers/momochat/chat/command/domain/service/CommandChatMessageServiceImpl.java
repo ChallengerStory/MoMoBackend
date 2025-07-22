@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -90,16 +91,16 @@ public class CommandChatMessageServiceImpl implements CommandChatMessageService 
             return;
         }
 
-        Boolean isNewRequest = redisTemplate
-                .opsForValue()
-                .setIfAbsent(idempotencyKey, "1", Duration.ofMinutes(3));
-
-        if (Boolean.FALSE.equals(isNewRequest)) {
-            log.info("중복 요청: 이미 처리된 idempotencyKey = {}", idempotencyKey);
-            return;
-        }
-
         try {
+            Boolean isNewRequest = redisTemplate
+                    .opsForValue()
+                    .setIfAbsent(idempotencyKey, "1", Duration.ofMinutes(3));
+
+            if (Boolean.FALSE.equals(isNewRequest)) {
+                log.info("중복 요청: 이미 처리된 idempotencyKey = {}", idempotencyKey);
+                return;
+            }
+
             ChatMessage chatMessage = ChatMessage.fromDTO(dto);
 
             // DB 저장
@@ -130,16 +131,17 @@ public class CommandChatMessageServiceImpl implements CommandChatMessageService 
             return;
         }
 
-        Boolean isNewRequest = redisTemplate
-                .opsForValue()
-                .setIfAbsent(idempotencyKey, "1", Duration.ofMinutes(3));
+        try {
+            // 1. 레디스 멱틍키 조회
+            Boolean isNewRequest = redisTemplate
+                    .opsForValue()
+                    .setIfAbsent(idempotencyKey, "1", Duration.ofMinutes(3));
 
-        if (Boolean.FALSE.equals(isNewRequest)) {
-            log.info("중복 요청: 이미 처리된 idempotencyKey = {}", idempotencyKey);
-            return;
-        }
+            if (Boolean.FALSE.equals(isNewRequest)) {
+                log.info("중복 요청: 이미 처리된 idempotencyKey = {}", idempotencyKey);
+                return;
+            }
 
-        try{
             // 2. 전송 메시지 db 저장
             ChatMessage savedMessage = commandChatMessageRepository.save(ChatMessage.fromDTO(dto));
 
@@ -155,6 +157,10 @@ public class CommandChatMessageServiceImpl implements CommandChatMessageService 
 
             // 4. outbox service 호출
             outboxService.createOutbox(outboxDTO);
+
+        } catch (RedisConnectionFailureException e) {
+            log.error("Redis 연결 실패: {}", e.getMessage());
+            throw new RuntimeException("Redis 연결 실패", e);
 
         } catch (JsonProcessingException e) {
             redisTemplate.delete(idempotencyKey);

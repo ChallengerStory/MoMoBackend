@@ -36,17 +36,6 @@ services:
     depends_on:
       - kafka
 
-#   mongo:
-#     image: mongo:6.0
-#     container_name: momo-mongo
-#     restart: always
-#     ports:
-#       - "27017:27017"
-#     environment:
-#       MONGO_INITDB_DATABASE: chatdb
-#     volumes:
-#       - mongo-data:/data/db
-
   momo-chat:
     build:
       context: ../momo-chat             # 서비스 폴더 위치 (현재 기준 상대 경로)
@@ -61,20 +50,15 @@ services:
       MONGO_DATABASE_NAME: chatdb
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_TOPIC_NAME: momo-chat-topic
+      REDIS_MASTER: mymaster
+      REDIS_PORT1: redis-sentinel-1:26379
+      REDIS_PORT2: redis-sentinel-2:26379
+      REDIS_PORT3: redis-sentinel-3:26379
     depends_on:
       - kafka
       - mongo1
       - mongo2
       - mongo3
-
-  redis:
-    image: redis:7.2
-    container_name: redis-single
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
 
   mongo1:
     image: mongo
@@ -133,8 +117,68 @@ services:
       - ./mongodb.key:/etc/mongo/mongodb.key
       - mongo3-data:/data/db
 
+  redis-master:
+    image: redis:7.2
+    container_name: redis-master
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+
+  redis-slave-1:
+    image: redis:7.2
+    container_name: redis-slave-1
+    ports:
+      - "6381:6379"
+    command: redis-server --replicaof redis-master 6379 --appendonly yes
+    depends_on:
+      - redis-master
+
+  redis-slave-2:
+    image: redis:7.2
+    container_name: redis-slave-2
+    ports:
+      - "6382:6379"
+    command: redis-server --replicaof redis-master 6379 --appendonly yes
+    depends_on:
+      - redis-master
+
+  redis-sentinel-1:
+    build: ./sentinel
+    container_name: redis-sentinel-1
+    ports:
+      - "26379:26379"
+    env_file:
+      - .env
+    depends_on:
+      - redis-master
+      - redis-slave-1
+      - redis-slave-2
+
+  redis-sentinel-2:
+    build: ./sentinel
+    container_name: redis-sentinel-2
+    ports:
+      - "26380:26379"
+    env_file:
+      - .env
+    depends_on:
+      - redis-master
+      - redis-slave-1
+      - redis-slave-2
+
+  redis-sentinel-3:
+    build: ./sentinel
+    container_name: redis-sentinel-3
+    ports:
+      - "26381:26379"
+    env_file:
+      - .env
+    depends_on:
+      - redis-master
+      - redis-slave-1
+      - redis-slave-2
+
 volumes:
   mongo1-data:
   mongo2-data:
   mongo3-data:
-  redis-data:

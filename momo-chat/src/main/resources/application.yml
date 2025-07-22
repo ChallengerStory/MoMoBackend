@@ -11,8 +11,17 @@ spring:
 #      uri: mongodb://root:rootpw@/mongo1:27017,mongo2:27018,mongo3:27019/chatdb?authSource=admin&replicaSet=rs0
       database: ${MONGO_DATABASE_NAME}
     redis:
-      host: redis
-      port: 6379
+      sentinel:
+        master: ${REDIS_MASTER}
+        nodes:
+          - ${REDIS_PORT1}
+          - ${REDIS_PORT2}
+          - ${REDIS_PORT3}
+    idempotency-ttl-seconds: 60
+
+#      password: ${DB_PASSWORD}
+#      timeout: 5000
+#      connect-timeout: 5000
 
   # kafka
   kafka:
