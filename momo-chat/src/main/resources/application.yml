@@ -1,0 +1,41 @@
+server:
+  port: 5000
+
+spring:
+
+  # mongodb
+  data:
+    mongodb:
+#      uri: ${MONGODB_URI} # mongodb://localhost:27017/chatdb
+      uri: mongodb://${DB_USERNAME}:${DB_PASSWORD}@${MONGO_REPLICA_ADDRESS}/${MONGO_DATABASE_NAME}?authSource=admin&replicaSet=rs0
+#      uri: mongodb://root:rootpw@/mongo1:27017,mongo2:27018,mongo3:27019/chatdb?authSource=admin&replicaSet=rs0
+      database: ${MONGO_DATABASE_NAME}
+    redis:
+      sentinel:
+        master: ${REDIS_MASTER}
+        nodes:
+          - ${REDIS_PORT1}
+          - ${REDIS_PORT2}
+          - ${REDIS_PORT3}
+    idempotency-ttl-seconds: 60
+
+#      password: ${DB_PASSWORD}
+#      timeout: 5000
+#      connect-timeout: 5000
+
+  # kafka
+  kafka:
+#    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    bootstrap-servers: kafka:9092
+    consumer:
+#      group-id: test-group
+#      group-id: chat-consumer-${random.int(10000)}
+      group-id: chat-consumer-${random.uuid}
+    topic:
+      chat: ${SPRING_KAFKA_TOPIC_NAME}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: env
